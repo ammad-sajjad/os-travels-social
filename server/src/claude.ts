@@ -318,6 +318,7 @@ You are an illustrator. For each description, draw one background picture as a s
 - No people's faces; any people are small silhouettes and modestly dressed. Respectful for religious places (exteriors only).
 - The lower 45% will be covered by dark text overlay: keep detail mostly in the upper part.
 - Use the exact width/height given, with viewBox set to match. Only basic SVG elements (rect, circle, ellipse, path, polygon, linearGradient, radialGradient, g). No <image>, no <text>, no external references, no filters.
+- Each SVG must be complete, well-formed XML: every attribute quoted, every tag closed.
 - Keep each SVG under 7,000 characters.
 `;
 

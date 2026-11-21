@@ -133,10 +133,12 @@ async function render(brand: Brand, brief: Brief, content: Content, reuse?: stri
     }
   }
 
-  const missing = descs.map((_, i) => i).filter((i) => !urls[i]);
-  if (missing.length) {
+  // Claude draws anything still missing; a drawing with broken SVG gets one automatic redraw.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const missing = descs.map((_, i) => i).filter((i) => !urls[i]);
+    if (!missing.length) break;
     const svgs = await drawBackgrounds(missing.map((i) => descs[i]), W, H).catch((e) => {
-      console.warn("Claude drawing failed, using brand colours:", (e as Error).message);
+      console.warn("Claude drawing failed:", (e as Error).message);
       return [] as string[];
     });
     for (let k = 0; k < missing.length; k++) {
@@ -148,7 +150,7 @@ async function render(brand: Brand, brief: Brief, content: Content, reuse?: stri
         urls[missing[k]] = (await saveFile(jpg, "jpg")).url;
         credits[missing[k]] = "Illustration drawn by Claude";
       } catch (e) {
-        console.warn("Could not render Claude's drawing:", (e as Error).message);
+        console.warn(`Could not render Claude's drawing (attempt ${attempt + 1}):`, (e as Error).message);
       }
     }
   }
