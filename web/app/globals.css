@@ -1,5 +1,113 @@
 @import "tailwindcss";
 
+@theme {
+  --color-ink: #12213b;
+  --color-ink-2: #1d3157;
+  --color-paper: #f4eee3;
+  --color-card: #fffcf6;
+  --color-sand: #ebe1cf;
+  --color-line: #ddd0b8;
+  --color-muted: #7b7160;
+  --color-sunset: #ef5a2f;
+  --color-sunset-2: #ff8a4c;
+  --color-sea: #0e7c78;
+  --color-gold: #e6b23e;
+
+  --animate-rise: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-marquee: marquee 38s linear infinite;
+  --animate-fly: fly 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  --animate-stamp: stamp 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-blink: blink 1.2s steps(2, start) infinite;
+}
+
 @theme inline {
-  --font-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes fly {
+  0% { offset-distance: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+@keyframes dash {
+  to { stroke-dashoffset: -40; }
+}
+@keyframes stamp {
+  0% { opacity: 0; transform: scale(1.8) rotate(-18deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-8deg); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+@keyframes blink {
+  to { visibility: hidden; }
+}
+@keyframes flap {
+  0% { transform: rotateX(90deg); opacity: 0; }
+  100% { transform: rotateX(0); opacity: 1; }
+}
+
+body {
+  background-color: var(--color-paper);
+  /* soft paper grain + faint map grid */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .25 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(to right, rgba(18, 33, 59, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(18, 33, 59, 0.035) 1px, transparent 1px);
+  background-size: 160px 160px, 56px 56px, 56px 56px;
+}
+
+/* Ticket card with notches on both sides */
+.ticket {
+  -webkit-mask:
+    radial-gradient(circle 11px at 0 50%, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 50%, #0000 98%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 11px at 0 50%, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 50%, #0000 98%, #000) right / 51% 100% no-repeat;
+}
+
+.perforation {
+  background-image: linear-gradient(to right, var(--color-line) 55%, transparent 0);
+  background-size: 12px 1.5px;
+  background-repeat: repeat-x;
+  height: 1.5px;
+}
+
+.route-line {
+  stroke-dasharray: 2 8;
+  animation: dash 1.2s linear infinite;
+}
+
+.flap > span {
+  display: inline-block;
+  animation: flap 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+.stagger > * { animation: var(--animate-rise); }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.18s; }
+.stagger > *:nth-child(5) { animation-delay: 0.24s; }
+.stagger > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger > *:nth-child(7) { animation-delay: 0.36s; }
+.stagger > *:nth-child(n + 8) { animation-delay: 0.42s; }
+
+::selection { background: var(--color-gold); color: var(--color-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }

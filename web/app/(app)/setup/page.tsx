@@ -11,7 +11,7 @@ function Row({ ok, label, hint }: { ok: boolean; label: string; hint: string }) 
       <span className="mt-0.5">{ok ? "✅" : "⚠️"}</span>
       <div>
         <p className="text-sm font-medium">{label}</p>
-        {!ok && <p className="text-xs text-slate-500">{hint}</p>}
+        {!ok && <p className="text-xs text-muted">{hint}</p>}
       </div>
     </li>
   );
@@ -36,13 +36,13 @@ export default function SetupPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Connections</h1>
-        <p className="text-sm text-slate-500">Keys are set as environment variables on the Railway server (never in this website). See README for where each one comes from.</p>
+        <h1 className="font-display text-5xl leading-none text-ink">Connections</h1>
+        <p className="text-sm text-muted">Keys are set as environment variables on the Railway server (never in this website). See README for where each one comes from.</p>
       </div>
       <ErrorBox message={error} />
       {status && (
         <Card>
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-line">
             <Row ok label="Website is connected to the server" hint="" />
             <Row ok={status.anthropic} label={`Claude (${status.model})`} hint="Set ANTHROPIC_API_KEY on Railway." />
             <Row ok={status.meta_token} label="Meta System User token" hint="Set META_SYSTEM_USER_TOKEN on Railway." />

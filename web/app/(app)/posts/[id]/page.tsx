@@ -1,8 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { api, statusColor, statusLabel, type Content, type Platform, type Post } from "@/lib/api";
-import { AskClaude, Button, Card, ErrorBox, Input, Label, Textarea, Toggle } from "@/components/ui";
+import { api, statusLabel, type Content, type Platform, type Post } from "@/lib/api";
+import { AskClaude, Button, Card, ErrorBox, Eyebrow, FlightPath, Input, Label, Stamp, Textarea, Toggle } from "@/components/ui";
 
 const BUSY = ["generating", "publishing"];
 type Field = "image" | "visual" | "caption_instagram" | "caption_facebook" | "hashtags" | "first_comment";
@@ -67,7 +67,7 @@ export default function PostPage() {
     }
   };
 
-  if (!post) return <div className="text-slate-500">{error ?? "Loading…"}</div>;
+  if (!post) return <div className="text-muted">{error ?? "Loading…"}</div>;
 
   const images = post.media.filter((m) => m.kind === "image");
   const video = post.media.find((m) => m.kind === "video");
@@ -91,24 +91,23 @@ export default function PostPage() {
   const canAsk = editable && !working;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <button onClick={() => router.push("/posts")} className="text-sm text-slate-500 hover:text-slate-900">← History</button>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{post.brief.topic}</h1>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusColor[post.status]}`}>{statusLabel[post.status]}</span>
-        {post.status === "scheduled" && post.publish_at && <span className="text-sm text-slate-500">for {new Date(post.publish_at).toLocaleString()}</span>}
-        {post.source === "autopilot" && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">autopilot</span>}
+    <div className="stagger space-y-6">
+      <div className="flex flex-wrap items-center gap-4">
+        <button onClick={() => router.push("/posts")} className="font-mono text-[11px] uppercase tracking-widest text-muted hover:text-sunset">← History</button>
+        <h1 className="font-display text-4xl leading-none text-ink">{post.brief.topic}</h1>
+        <Stamp key={post.status} color={post.status === "published" ? "sea" : post.status === "failed" || post.status === "partial" ? "sunset" : post.status === "ready" ? "gold" : "ink"}>{statusLabel[post.status]}</Stamp>
+        {post.status === "scheduled" && post.publish_at && <span className="text-sm text-muted">for {new Date(post.publish_at).toLocaleString()}</span>}
+        {post.source === "autopilot" && <Stamp color="ink">Autopilot</Stamp>}
       </div>
 
       {working && (
-        <Card className="flex items-center gap-4">
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white">
-            <span className="absolute inset-0 animate-ping rounded-2xl bg-indigo-400 opacity-30" />✦
-          </span>
+        <Card ticket className="flex flex-col items-center gap-6 py-10 text-center sm:flex-row sm:text-left">
+          <FlightPath from={post.status === "publishing" ? "READY" : "BRIEF"} to={post.status === "publishing" ? post.platforms.map((x) => (x === "facebook" ? "FB" : "IG")).join("+") : "POST"} />
           <div>
-            <p className="font-semibold text-slate-900">{post.status === "publishing" ? "Posting to " + post.platforms.join(" and ") + "…" : post.content ? "Claude is making your change…" : "Claude is creating your post…"}</p>
-            <p className="text-sm text-slate-500">
-              {post.status === "publishing" ? "This can take a minute, especially for reels." : `Writing, checking and designing. Usually 30–90 seconds${post.brief.format === "reel" ? ", a bit longer for reels" : ""}.`}
+            <Eyebrow>{post.status === "publishing" ? "Now boarding" : "In flight"}</Eyebrow>
+            <p className="mt-1 font-display text-3xl text-ink">{post.status === "publishing" ? "Posting to " + post.platforms.join(" and ") + "…" : post.content ? "Claude is making your change…" : "Claude is creating your post…"}</p>
+            <p className="mt-1 text-sm text-muted">
+              {post.status === "publishing" ? "This can take a minute, especially for reels." : `Writing, fact-checking and designing. Usually 30–90 seconds${post.brief.format === "reel" ? ", a little longer for reels" : ""}.`}
             </p>
           </div>
         </Card>
@@ -118,10 +117,10 @@ export default function PostPage() {
       {post.media.length > 0 && draft && (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,400px)_1fr]">
           <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-            <Card className="p-3 sm:p-3">
+            <Card className="rotate-[-0.6deg] p-3 transition duration-500 hover:rotate-0 sm:p-3">
               <div className={working ? "opacity-50 transition" : "transition"}>
                 {video ? (
-                  <video src={video.url} poster={cover?.url} controls playsInline className="w-full rounded-2xl bg-black" />
+                  <video src={video.url} poster={cover?.url} controls playsInline className="w-full rounded-2xl bg-ink" />
                 ) : (
                   <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto">
                     {images.map((m, i) => (
@@ -131,19 +130,19 @@ export default function PostPage() {
                   </div>
                 )}
               </div>
-              {images.length > 1 && <p className="mt-2 text-center text-xs text-slate-500">{images.length} slides — swipe sideways</p>}
-              {!!credits.length && <p className="mt-1 text-center text-xs text-slate-400">{credits.join(" · ")}</p>}
+              {images.length > 1 && <p className="mt-2 text-center text-xs text-muted">{images.length} slides — swipe sideways</p>}
+              {!!credits.length && <p className="mt-1 text-center text-xs text-muted/70">{credits.join(" · ")}</p>}
             </Card>
             <Card>
-              <p className="text-sm font-semibold text-slate-900">🖼️ The picture</p>
-              <p className="text-xs text-slate-500">Change what the background shows.</p>
+              <p className="font-display text-2xl text-ink">The picture</p>
+              <p className="text-xs text-muted">Change what the background shows.</p>
               <AskClaude disabled={!canAsk} placeholder="e.g. show a beach at sunset instead" suggestions={["Brighter colours", "More luxurious", "Show the landmark closer"]} onSend={ask("visual")} />
-              <div className="mt-5 border-t border-slate-100 pt-4">
-                <p className="text-sm font-semibold text-slate-900">🔤 Text on the image</p>
-                <p className="text-xs text-slate-500">Headline, points, price badge and button.</p>
+              <div className="mt-5 border-t border-line pt-4">
+                <p className="font-display text-2xl text-ink">Text on the image</p>
+                <p className="text-xs text-muted">Headline, points, price badge and button.</p>
                 <AskClaude disabled={!canAsk} placeholder="e.g. make the headline shorter and punchier" suggestions={["Shorter headline", "Add urgency", "Remove the points"]} onSend={ask("image")} />
                 <details className="mt-3">
-                  <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-800">Edit the text myself</summary>
+                  <summary className="cursor-pointer text-xs font-medium text-muted hover:text-ink">Edit the text myself</summary>
                   <div className="mt-3 grid gap-3">
                     <div><Label>Headline</Label><Input value={draft.headline} disabled={!editable} onChange={(e) => upd({ headline: e.target.value })} /></div>
                     <div className="grid grid-cols-2 gap-3">
@@ -169,26 +168,26 @@ export default function PostPage() {
 
           <div className="space-y-4">
             {post.check_report && (
-              <Card className={checkFailed ? "!border-red-200 !bg-red-50/60" : "!border-emerald-200 !bg-emerald-50/60"}>
-                <p className={`text-sm font-semibold ${checkFailed ? "text-red-800" : "text-emerald-800"}`}>{checkFailed ? "⚠️ Quality check found problems" : "✅ Quality check passed"}</p>
+              <Card className={checkFailed ? "!border-sunset/40" : "!border-sea/40"}>
+                <div className="flex items-center justify-between gap-3"><p className="font-display text-2xl text-ink">Customs check</p><Stamp color={checkFailed ? "sunset" : "sea"}>{checkFailed ? "Held" : "Cleared"}</Stamp></div>
                 <ul className="mt-2 space-y-1 text-sm">
                   {post.check_report.checks.filter((c) => c.status !== "pass").map((c) => (
-                    <li key={c.name} className={c.status === "fail" ? "text-red-700" : "text-amber-700"}>
+                    <li key={c.name} className={c.status === "fail" ? "text-sunset" : "text-[#9c7316]"}>
                       <b className="capitalize">{c.name}</b>: {c.reason}{c.fix ? ` → ${c.fix}` : ""}
                     </li>
                   ))}
-                  {post.check_report.checks.every((c) => c.status === "pass") && <li className="text-emerald-700">Facts, prices, wording and brand rules all look right.</li>}
+                  {post.check_report.checks.every((c) => c.status === "pass") && <li className="text-sea">Facts, prices, wording and brand rules all look right.</li>}
                 </ul>
               </Card>
             )}
 
             {post.brief.page && (
               <Card className="flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-lg">🔗</span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sand text-lg">🔗</span>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-500">Linked page (Claude read it and added it to the post)</p>
-                  <a href={post.brief.page.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-semibold text-indigo-700 hover:underline">{post.brief.page.title || post.brief.page.url}</a>
-                  <p className="truncate text-xs text-slate-400">{post.brief.page.url}</p>
+                  <p className="text-xs font-medium text-muted">Linked page (Claude read it and added it to the post)</p>
+                  <a href={post.brief.page.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-semibold text-sea hover:underline">{post.brief.page.title || post.brief.page.url}</a>
+                  <p className="truncate text-xs text-muted/70">{post.brief.page.url}</p>
                 </div>
               </Card>
             )}
@@ -196,8 +195,8 @@ export default function PostPage() {
             {(["caption_instagram", "caption_facebook"] as const).map((k) => (
               <Card key={k}>
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-900">{k === "caption_instagram" ? "📸 Instagram caption" : "📘 Facebook caption"}</p>
-                  <span className="text-xs text-slate-400">{draft[k].length} characters</span>
+                  <p className="font-display text-2xl text-ink">{k === "caption_instagram" ? "Instagram caption" : "Facebook caption"}</p>
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-muted">{draft[k].length} chars</span>
                 </div>
                 <Textarea rows={8} value={draft[k]} disabled={!editable} onChange={(e) => upd({ [k]: e.target.value } as Partial<Content>)} />
                 <AskClaude disabled={!canAsk} placeholder="e.g. make it shorter and more emotional" suggestions={["Shorter", "More emotional", "Add urgency", "More Roman Urdu"]} onSend={ask(k)} />
@@ -205,9 +204,9 @@ export default function PostPage() {
             ))}
 
             <Card>
-              <p className="mb-2 text-sm font-semibold text-slate-900"># Hashtags</p>
+              <p className="mb-3 font-display text-2xl text-ink">Hashtags</p>
               <div className="flex flex-wrap gap-1.5">
-                {draft.hashtags.map((h) => <span key={h} className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">{h.startsWith("#") ? h : `#${h}`}</span>)}
+                {draft.hashtags.map((h) => <span key={h} className="rounded-full border border-sea/30 bg-sea/5 px-2.5 py-1 font-mono text-[11px] text-sea">{h.startsWith("#") ? h : `#${h}`}</span>)}
               </div>
               <AskClaude disabled={!canAsk} placeholder="e.g. add more family travel hashtags" suggestions={["Fewer hashtags", "More destination tags", "Add seasonal tags"]} onSend={ask("hashtags")} />
             </Card>
@@ -224,13 +223,13 @@ export default function PostPage() {
 
             {Object.keys(post.results).length > 0 && (
               <Card>
-                <p className="mb-2 text-sm font-semibold text-slate-900">Posting results</p>
+                <p className="mb-3 font-display text-2xl text-ink">Arrivals</p>
                 <ul className="space-y-1.5 text-sm">
                   {Object.entries(post.results).map(([pl, r]) => (
                     <li key={pl}>
-                      <b className="capitalize">{pl}</b>: {r.status === "published" ? "✅ posted" : r.status === "publishing" ? "⏳ posting…" : "❌ failed"}
-                      {r.link && <> — <a className="font-medium text-indigo-700 underline" href={r.link} target="_blank" rel="noreferrer">open post</a></>}
-                      {r.error && <span className="text-red-700"> — {r.error}</span>}
+                      <b className="capitalize">{pl}</b>: {r.status === "published" ? <Stamp color="sea" className="ml-1">Landed</Stamp> : r.status === "publishing" ? "posting…" : <Stamp color="sunset" className="ml-1">Failed</Stamp>}
+                      {r.link && <> — <a className="font-medium text-sea underline" href={r.link} target="_blank" rel="noreferrer">open post</a></>}
+                      {r.error && <span className="text-sunset"> — {r.error}</span>}
                     </li>
                   ))}
                 </ul>
@@ -238,24 +237,24 @@ export default function PostPage() {
             )}
 
             {canPublish && (
-              <Card className="space-y-4 !border-indigo-200">
-                <p className="font-semibold text-slate-900">Ready to post?</p>
+              <Card className="space-y-4 !border-ink">
+                <div className="flex items-center justify-between"><p className="font-display text-3xl text-ink">Ready for take-off?</p><span className="font-mono text-[10px] uppercase tracking-widest text-muted">Final call</span></div>
                 <div className="flex gap-2">
                   {(["facebook", "instagram"] as Platform[]).map((pl) => (
                     <Toggle key={pl} icon={pl === "facebook" ? "📘" : "📸"} checked={platforms.includes(pl)} onChange={(v) => setPlatforms(v ? [...new Set([...platforms, pl])] : platforms.filter((x) => x !== pl))} label={pl === "facebook" ? "Facebook" : "Instagram"} />
                   ))}
                 </div>
                 {checkFailed && (
-                  <label className="flex items-start gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-800">
+                  <label className="flex items-start gap-2 rounded-xl bg-sunset/5 p-3 text-sm text-sunset">
                     <input type="checkbox" className="mt-0.5" checked={override} onChange={(e) => setOverride(e.target.checked)} />
                     The quality check found problems. I&apos;ve read them and want to post anyway.
                   </label>
                 )}
                 <div className="flex flex-wrap items-end gap-3">
                   <Button disabled={!!busy || !platforms.length || (checkFailed && !override)} onClick={() => publish()} className="px-6">
-                    {busy === "publish" ? "Posting…" : "🚀 Post now"}
+                    {busy === "publish" ? "Posting…" : <>Post now <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">✈</span></>}
                   </Button>
-                  <span className="pb-2.5 text-sm text-slate-400">or</span>
+                  <span className="pb-2.5 font-mono text-[10px] uppercase tracking-widest text-muted">or</span>
                   <div className="flex items-end gap-2">
                     <div>
                       <Label>Schedule for</Label>

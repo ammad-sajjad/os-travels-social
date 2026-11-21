@@ -2,15 +2,34 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, upload, type Format, type Platform, type Post } from "@/lib/api";
-import { Button, Card, ErrorBox, Label, PromptBox, SectionTitle, Select, Toggle } from "@/components/ui";
+import { Arrow, Card, ErrorBox, Eyebrow, Label, PromptBox, SectionTitle, Select, Toggle } from "@/components/ui";
 
 type Brand = { business_name: string; services: { name: string }[]; tones: { name: string }[] };
 
-const FORMATS: { id: Format; icon: string; title: string; text: string }[] = [
-  { id: "image", icon: "🖼️", title: "Image", text: "One branded picture" },
-  { id: "carousel", icon: "🎠", title: "Carousel", text: "3–10 swipeable slides" },
-  { id: "reel", icon: "🎬", title: "Reel", text: "Short vertical video" },
+const FORMATS: { id: Format; code: string; title: string; text: string; icon: string }[] = [
+  { id: "image", code: "IMG", title: "Single image", text: "One branded picture", icon: "▢" },
+  { id: "carousel", code: "CRS", title: "Carousel", text: "3–10 swipeable slides", icon: "▤" },
+  { id: "reel", code: "REL", title: "Reel", text: "Short vertical video", icon: "▶" },
 ];
+
+const ROUTES = ["KHI → IST", "LHE → KUL", "ISB → DXB", "KHI → JED", "LHE → BKK", "ISB → GYD", "KHI → MLE", "LHE → TBS", "ISB → ICN", "KHI → SIN"];
+
+function Ticker() {
+  const items = [...ROUTES, ...ROUTES];
+  return (
+    <div className="relative overflow-hidden rounded-full bg-ink py-2 text-paper">
+      <div className="flex w-max animate-marquee gap-10 whitespace-nowrap px-6 font-mono text-xs tracking-[0.2em]">
+        {items.map((r, i) => (
+          <span key={i} className="flex items-center gap-3">
+            <span className="text-gold">●</span>{r}<span className="text-paper/40">ON TIME</span>
+          </span>
+        ))}
+      </div>
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-ink to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-ink to-transparent" />
+    </div>
+  );
+}
 
 export default function NewPostPage() {
   const router = useRouter();
@@ -35,6 +54,7 @@ export default function NewPostPage() {
 
   const setPrompt = (k: keyof typeof p) => (v: string) => setP((x) => ({ ...x, [k]: v }));
   const togglePlatform = (pl: Platform, on: boolean) => setPlatforms(on ? [...new Set([...platforms, pl])] : platforms.filter((x) => x !== pl));
+  const fmt = FORMATS.find((f) => f.id === format)!;
 
   async function addPhotos(files: FileList | null) {
     if (!files?.length) return;
@@ -74,32 +94,46 @@ export default function NewPostPage() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-indigo-600">{brand?.business_name ?? " "}</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">What should we post today?</h1>
-        <p className="mt-1 text-slate-500">Write to Claude in your own words — English, Urdu or Roman Urdu. Each box controls one part of the post.</p>
-      </div>
+    <form onSubmit={submit} className="stagger space-y-8">
+      <section className="relative">
+        <Eyebrow>{brand?.business_name ?? "Your brand"} · Content desk</Eyebrow>
+        <h1 className="mt-3 max-w-3xl font-display text-5xl leading-[1.02] text-ink sm:text-7xl">
+          Where are we <em className="text-sunset">flying</em> today?
+        </h1>
+        <p className="mt-4 max-w-xl text-[15px] text-muted">
+          Brief Claude like you&apos;d brief your best marketer — in English, Urdu or Roman Urdu. Every box below steers one part of the post.
+        </p>
+        <span className="pointer-events-none absolute -top-4 right-4 hidden animate-float select-none font-display text-[140px] leading-none text-sand lg:block">✈</span>
+      </section>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-6">
+      <Ticker />
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_330px]">
+        <div className="stagger space-y-8">
           <Card>
-            <SectionTitle icon="①" title="Format and where to post" />
+            <SectionTitle no="01" title="Choose your flight" hint="What kind of post, and where it lands." />
             <div className="grid gap-3 sm:grid-cols-3">
-              {FORMATS.map((f) => (
-                <button type="button" key={f.id} onClick={() => setFormat(f.id)} className={`rounded-2xl border p-4 text-left transition ${format === f.id ? "border-indigo-500 bg-indigo-50 ring-4 ring-indigo-100" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-                  <div className="text-2xl">{f.icon}</div>
-                  <div className="mt-2 font-semibold text-slate-900">{f.title}</div>
-                  <div className="text-xs text-slate-500">{f.text}</div>
-                </button>
-              ))}
+              {FORMATS.map((f) => {
+                const on = format === f.id;
+                return (
+                  <button type="button" key={f.id} onClick={() => setFormat(f.id)}
+                    className={`ticket group relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300 ${on ? "-translate-y-1 border-ink bg-ink text-paper shadow-[0_18px_30px_-18px_rgba(18,33,59,0.8)]" : "border-line bg-white/60 hover:-translate-y-0.5 hover:border-ink/40"}`}>
+                    <div className="flex items-center justify-between font-mono text-[10px] tracking-[0.2em]">
+                      <span className={on ? "text-gold" : "text-muted"}>{f.code}</span>
+                      <span className={`text-lg transition-transform duration-500 group-hover:rotate-12 ${on ? "text-sunset-2" : "text-muted"}`}>{f.icon}</span>
+                    </div>
+                    <div className="mt-6 font-display text-2xl leading-none">{f.title}</div>
+                    <div className={`mt-1 text-xs ${on ? "text-paper/60" : "text-muted"}`}>{f.text}</div>
+                  </button>
+                );
+              })}
             </div>
-            <div className="mt-4 flex flex-wrap items-end gap-4">
+            <div className="mt-6 flex flex-wrap items-end gap-6">
               <div>
-                <Label>Post to</Label>
+                <Label>Destination</Label>
                 <div className="flex gap-2">
-                  <Toggle icon="📘" checked={platforms.includes("facebook")} onChange={(v) => togglePlatform("facebook", v)} label="Facebook" />
-                  <Toggle icon="📸" checked={platforms.includes("instagram")} onChange={(v) => togglePlatform("instagram", v)} label="Instagram" />
+                  <Toggle checked={platforms.includes("facebook")} onChange={(v) => togglePlatform("facebook", v)} label="Facebook" />
+                  <Toggle checked={platforms.includes("instagram")} onChange={(v) => togglePlatform("instagram", v)} label="Instagram" />
                 </div>
               </div>
               {format === "carousel" && (
@@ -122,7 +156,7 @@ export default function NewPostPage() {
           </Card>
 
           <Card className="space-y-4">
-            <SectionTitle icon="②" title="Tell Claude what to make" hint="Only the first box is required. Leave any box empty and Claude decides." />
+            <SectionTitle no="02" title="Brief Claude" hint="Only the first box is required — leave the rest empty and Claude decides." />
             <div className="grid gap-3 sm:grid-cols-2">
               {!!brand?.services.length && (
                 <div>
@@ -141,60 +175,67 @@ export default function NewPostPage() {
                 </Select>
               </div>
             </div>
-            <PromptBox label="What is the post about?" required rows={2} value={p.topic} onChange={setPrompt("topic")}
-              placeholder="e.g. Turkey family tour — Istanbul and Cappadocia, 7 days"
+            <PromptBox no="A" label="What is the post about?" required rows={2} value={p.topic} onChange={setPrompt("topic")}
+              placeholder="Turkey family tour — Istanbul and Cappadocia, 7 days"
               chips={["Family package", "Honeymoon special", "Umrah package", "Visa assistance"]} />
-            <PromptBox label="Offer and details" hint="price, dates, what's included" value={p.details} onChange={setPrompt("details")}
-              placeholder="e.g. PKR 2,45,000 per person, 15–22 March, flights + 4-star hotel + transfers, only 10 seats"
+            <PromptBox no="B" label="Offer & details" hint="price · dates · inclusions" value={p.details} onChange={setPrompt("details")}
+              placeholder="PKR 2,45,000 per person, 15–22 March, flights + 4-star hotel + transfers, only 10 seats"
               chips={["Price per person", "Seats limited", "Booking deadline"]} />
-            <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/60 p-3.5 shadow-sm focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-50">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-[11px] text-white">🔗</span>
-                <span className="text-sm font-semibold text-slate-800">Link to a web page</span>
-                <span className="text-xs text-slate-400">optional — Claude reads it and adds the link to the post</span>
+
+            <div className="group relative rounded-2xl border border-line bg-white/60 p-4 pl-5 transition-all duration-300 focus-within:-translate-y-0.5 focus-within:border-ink/50 focus-within:bg-white">
+              <span className="absolute bottom-4 left-0 top-4 w-[3px] rounded-full bg-line transition-colors group-focus-within:bg-sea" />
+              <div className="mb-1 flex flex-wrap items-baseline gap-x-3">
+                <span className="font-mono text-[11px] text-sea">C</span>
+                <span className="font-display text-xl text-ink">Link to a web page</span>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-muted">optional</span>
               </div>
-              <input type="text" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)}
-                placeholder="e.g. yoursite.com/malaysia-tour  or just  bookmyflight.com"
-                className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400" />
-              <p className="mt-2 text-xs text-slate-500">Paste a specific page, or a whole website — Claude will find the page on it that matches your topic (e.g. the Malaysia page).</p>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm text-sea">↗</span>
+                <input type="text" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)}
+                  placeholder="yoursite.com/malaysia-tour — or a whole site like bookmyflight.com"
+                  className="w-full bg-transparent py-1 text-[15px] text-ink outline-none placeholder:text-muted/50" />
+              </div>
+              <p className="mt-2 text-xs text-muted">Claude reads the page (or finds the right page on the site for your topic) and puts the link in the post.</p>
               {link.trim() && !photos.length && (
-                <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                <label className="mt-2 flex items-center gap-2 text-xs text-muted">
                   <input type="checkbox" checked={useLinkImage} onChange={(e) => setUseLinkImage(e.target.checked)} />
                   Use the page&apos;s main picture as the background (only if you have the right to use it)
                 </label>
               )}
             </div>
-            <PromptBox label="The picture" hint={photos.length ? "your photos will be used" : "Claude draws it"} value={p.visual} onChange={setPrompt("visual")}
-              placeholder="e.g. hot air balloons over Cappadocia at sunrise, warm golden colours"
+
+            <PromptBox no="D" label="The picture" hint={photos.length ? "your photos will be used" : "Claude draws it"} value={p.visual} onChange={setPrompt("visual")}
+              placeholder="Hot air balloons over Cappadocia at sunrise, warm golden colours"
               chips={["Sunset colours", "Famous landmark", "Family enjoying the view", "Calm and elegant"]} />
-            <PromptBox label="The caption" value={p.caption} onChange={setPrompt("caption")}
-              placeholder="e.g. emotional and short, talk to parents, mention school holidays"
+            <PromptBox no="E" label="The caption" value={p.caption} onChange={setPrompt("caption")}
+              placeholder="Emotional and short, talk to parents, mention school holidays"
               chips={["Keep it short", "More emotional", "Add urgency", "Mention WhatsApp"]} />
-            <PromptBox label="Hashtags" rows={2} value={p.hashtags} onChange={setPrompt("hashtags")}
-              placeholder="e.g. focus on family travel and Pakistan, add #Turkey2027"
+            <PromptBox no="F" label="Hashtags" rows={2} value={p.hashtags} onChange={setPrompt("hashtags")}
+              placeholder="Focus on family travel and Pakistan, add #Turkey2027"
               chips={["Family travel tags", "Destination tags", "Pakistan travel tags"]} />
             {format === "reel" && (
-              <PromptBox label="Reel script and scenes" value={p.script} onChange={setPrompt("script")}
-                placeholder="e.g. start with a question hook, show 4 places, end with the price and WhatsApp"
+              <PromptBox no="G" label="Reel script & scenes" value={p.script} onChange={setPrompt("script")}
+                placeholder="Start with a question hook, show 4 places, end with the price and WhatsApp"
                 chips={["Question hook", "Show 4 places", "End with price"]} />
             )}
           </Card>
 
           <Card>
-            <SectionTitle icon="③" title="Your own photos (optional)" hint="Leave empty and Claude draws the background for you." />
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-4 py-6 text-center transition hover:border-indigo-300 hover:bg-indigo-50/40">
-              <span className="text-2xl">📷</span>
-              <span className="text-sm font-medium text-slate-700">{uploading ? "Uploading…" : "Click to add photos"}</span>
-              <span className="text-xs text-slate-400">JPG or PNG, up to 10</span>
+            <SectionTitle no="03" title="Your own photos" hint="Optional — leave empty and Claude draws the background." />
+            <label className="group flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-line bg-white/40 px-4 py-8 text-center transition hover:border-sunset hover:bg-white">
+              <span className="text-3xl transition-transform duration-500 group-hover:-translate-y-1 group-hover:rotate-6">📷</span>
+              <span className="font-display text-xl text-ink">{uploading ? "Uploading…" : "Drop in your photos"}</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted">JPG or PNG · up to 10</span>
               <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => addPhotos(e.target.files)} disabled={uploading} />
             </label>
             {!!photos.length && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {photos.map((u) => (
-                  <button type="button" key={u} onClick={() => setPhotos(photos.filter((x) => x !== u))} title="Remove" className="group relative">
+              <div className="mt-4 flex flex-wrap gap-3">
+                {photos.map((u, i) => (
+                  <button type="button" key={u} onClick={() => setPhotos(photos.filter((x) => x !== u))} title="Remove"
+                    className="group relative bg-white p-1.5 pb-5 shadow-md transition hover:rotate-0" style={{ transform: `rotate(${(i % 2 ? 3 : -3)}deg)` }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={u} alt="" className="h-20 w-20 rounded-xl object-cover ring-1 ring-slate-200" />
-                    <span className="absolute -right-1.5 -top-1.5 hidden h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-xs text-white group-hover:flex">×</span>
+                    <img src={u} alt="" className="h-20 w-20 object-cover" />
+                    <span className="absolute -right-2 -top-2 hidden h-5 w-5 items-center justify-center rounded-full bg-sunset text-xs text-white group-hover:flex">×</span>
                   </button>
                 ))}
               </div>
@@ -202,27 +243,49 @@ export default function NewPostPage() {
           </Card>
         </div>
 
+        {/* Boarding pass summary */}
         <div className="lg:sticky lg:top-24 lg:self-start">
-          <Card className="space-y-4">
-            <h3 className="font-semibold text-slate-900">Claude will</h3>
-            <ul className="space-y-2.5 text-sm text-slate-600">
-              {[
-                "Read every box and your brand guide",
-                ...(link.trim() ? ["Open your link, find the right page and add it to the post"] : []),
-                photos.length ? "Use your photos as the background" : "Draw the background picture",
-                format === "reel" ? "Write the scenes and build the reel" : format === "carousel" ? `Write and design ${slides} slides` : "Design the branded image",
-                "Write Facebook and Instagram captions",
-                "Check facts, prices and wording",
-              ].map((t) => (
-                <li key={t} className="flex gap-2"><span className="text-indigo-500">✓</span>{t}</li>
-              ))}
-            </ul>
-            <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Nothing is posted until you check the preview and press Post.</p>
-            <ErrorBox message={error} />
-            <Button disabled={busy || uploading} className="w-full py-3 text-base">
-              {busy ? "Starting…" : "✦ Create with Claude"}
-            </Button>
-          </Card>
+          <div className="ticket overflow-hidden rounded-[22px] bg-ink text-paper shadow-[0_30px_50px_-28px_rgba(18,33,59,0.9)]">
+            <div className="p-6">
+              <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.25em] text-paper/50">
+                <span>Boarding pass</span><span className="text-gold">{fmt.code}</span>
+              </div>
+              <div className="mt-5 flex items-end justify-between">
+                <div>
+                  <p className="font-mono text-[10px] tracking-widest text-paper/50">FROM</p>
+                  <p className="font-display text-4xl leading-none">Idea</p>
+                </div>
+                <span className="mb-1 text-gold">- - ✈ - -</span>
+                <div className="text-right">
+                  <p className="font-mono text-[10px] tracking-widest text-paper/50">TO</p>
+                  <p className="font-display text-4xl leading-none text-sunset-2">Post</p>
+                </div>
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-4 font-mono text-[11px]">
+                <div><p className="text-paper/40">FORMAT</p><p className="mt-0.5">{fmt.title}{format === "carousel" ? ` · ${slides}` : format === "reel" ? ` · ${seconds}s` : ""}</p></div>
+                <div><p className="text-paper/40">GATE</p><p className="mt-0.5">{platforms.length ? platforms.map((x) => (x === "facebook" ? "FB" : "IG")).join(" + ") : "—"}</p></div>
+                <div><p className="text-paper/40">PICTURE</p><p className="mt-0.5">{photos.length ? `${photos.length} photo${photos.length > 1 ? "s" : ""}` : "Drawn by Claude"}</p></div>
+                <div><p className="text-paper/40">LINK</p><p className="mt-0.5 truncate">{link.trim() || "—"}</p></div>
+              </div>
+            </div>
+            <div className="perforation mx-5 opacity-40" />
+            <div className="space-y-4 p-6">
+              <ul className="space-y-2 text-sm text-paper/80">
+                {["Reads your brief and brand guide", ...(link.trim() ? ["Opens your link and adds it"] : []), photos.length ? "Uses your photos" : "Draws the background", "Writes FB + IG captions", "Fact-checks prices and wording"].map((t) => (
+                  <li key={t} className="flex gap-2"><span className="text-gold">✓</span>{t}</li>
+                ))}
+              </ul>
+              <ErrorBox message={error} />
+              <button disabled={busy || uploading}
+                className="group relative w-full overflow-hidden rounded-full bg-sunset py-3.5 text-base font-semibold text-white transition hover:bg-sunset-2 disabled:opacity-50">
+                <span className="relative z-10 inline-flex items-center gap-2">{busy ? "Checking in…" : <>Print boarding pass <Arrow /></>}</span>
+              </button>
+              <p className="text-center font-mono text-[10px] uppercase tracking-widest text-paper/40">Nothing posts until you approve</p>
+              <div className="flex h-10 items-end justify-center gap-[3px] opacity-60" aria-hidden>
+                {Array.from({ length: 42 }, (_, i) => <span key={i} className="bg-paper" style={{ width: (i * 7) % 3 === 0 ? 3 : 1.5, height: 18 + ((i * 13) % 22) }} />)}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </form>
