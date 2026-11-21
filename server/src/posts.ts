@@ -318,6 +318,7 @@ function localNow() {
 async function runAutopilot() {
   const ap = await getSetting("autopilot");
   if (!ap.enabled) return;
+  if (config.claudeMode === "local") return; // unattended posting needs an API key
   const now = localNow();
   if (now.time < ap.time) return;
   const last = await getRaw("autopilot_last_run");

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Button, Card, ErrorBox } from "@/components/ui";
 
-type Status = { anthropic: boolean; pexels: boolean; meta_token: boolean; meta_page_id: boolean; meta_ig_user_id: boolean; database: string; public_url: string; model: string };
+type Status = { anthropic: boolean; claude_mode: "api" | "local"; helper: { connected: boolean; last_seen: string | null }; pexels: boolean; meta_token: boolean; meta_page_id: boolean; meta_ig_user_id: boolean; database: string; public_url: string; model: string };
 
 function Row({ ok, label, hint }: { ok: boolean; label: string; hint: string }) {
   return (
@@ -44,7 +44,9 @@ export default function SetupPage() {
         <Card>
           <ul className="divide-y divide-line">
             <Row ok label="Website is connected to the server" hint="" />
-            <Row ok={status.anthropic} label={`Claude (${status.model})`} hint="Set ANTHROPIC_API_KEY on Railway." />
+            {status.claude_mode === "local"
+              ? <Row ok={status.helper.connected} label={status.helper.connected ? "Claude on your Mac: connected (Pro plan)" : "Claude on your Mac: not connected"} hint="Turn on the Mac, keep it awake and online. The helper starts by itself." />
+              : <Row ok={status.anthropic} label={`Claude API (${status.model})`} hint="Set ANTHROPIC_API_KEY on Railway." />}
             <Row ok={status.meta_token} label="Meta System User token" hint="Set META_SYSTEM_USER_TOKEN on Railway." />
             <Row ok={status.meta_page_id} label="Facebook Page ID" hint="Set META_PAGE_ID on Railway." />
             <Row ok={status.meta_ig_user_id} label="Instagram account ID" hint="Set META_IG_USER_ID on Railway (only needed for Instagram)." />

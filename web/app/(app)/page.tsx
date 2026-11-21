@@ -47,9 +47,15 @@ export default function NewPostPage() {
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [macOffline, setMacOffline] = useState(false);
 
   useEffect(() => {
     api<Brand>("settings/brand").then(setBrand).catch((e) => setError(e.message));
+    const check = () => api<{ claude_mode: string; helper: { connected: boolean } }>("status")
+      .then((s) => setMacOffline(s.claude_mode === "local" && !s.helper.connected)).catch(() => {});
+    check();
+    const t = setInterval(check, 10_000);
+    return () => clearInterval(t);
   }, []);
 
   const setPrompt = (k: keyof typeof p) => (v: string) => setP((x) => ({ ...x, [k]: v }));
@@ -275,8 +281,9 @@ export default function NewPostPage() {
                   <li key={t} className="flex gap-2"><span className="text-gold">✓</span>{t}</li>
                 ))}
               </ul>
+              {macOffline && <p className="rounded-xl bg-sunset/20 px-3 py-2 text-xs text-paper">Claude on your Mac isn&apos;t connected. Keep the Mac on, awake and online.</p>}
               <ErrorBox message={error} />
-              <button disabled={busy || uploading}
+              <button disabled={busy || uploading || macOffline}
                 className="group relative w-full overflow-hidden rounded-full bg-sunset py-3.5 text-base font-semibold text-white transition hover:bg-sunset-2 disabled:opacity-50">
                 <span className="relative z-10 inline-flex items-center gap-2">{busy ? "Checking in…" : <>Print boarding pass <Arrow /></>}</span>
               </button>

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { config } from "./config.js";
 import type { Brand } from "./settings.js";
 import { industryPacks } from "./packs.js";
+import { runLocal } from "./localjobs.js";
 
 export const BriefSchema = z.object({
   format: z.enum(["image", "carousel", "reel"]).default("image"),
@@ -201,6 +202,10 @@ Any fail = result "fail". Warnings do not block.
 `;
 
 async function parse<T extends z.ZodType>(system: string, user: string, schema: T, effort: "low" | "medium"): Promise<z.infer<T>> {
+  if (config.claudeMode === "local") {
+    const raw = await runLocal(system, user, z.toJSONSchema(schema), effort);
+    return schema.parse(raw) as z.infer<T>;
+  }
   const response = await claude().beta.messages.parse({
     model: config.claudeModel,
     max_tokens: 16000,

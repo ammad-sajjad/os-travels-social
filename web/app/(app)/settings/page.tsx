@@ -163,7 +163,7 @@ export default function SettingsPage() {
       <Card className="space-y-4">
         <div>
           <h2 className="font-display text-2xl text-ink">Autopilot (daily automatic post)</h2>
-          <p className="text-sm text-muted">When on, Claude picks a topic and posts once a day at the time below, with nobody pressing a button. Leave it off until you trust the manual posts.</p>
+          <p className="text-sm text-muted">When on, Claude picks a topic and posts once a day at the time below, with nobody pressing a button. Leave it off until you trust the manual posts. Autopilot needs an Anthropic API key: it does not run on the Mac + Pro plan setup.</p>
         </div>
         <Toggle checked={auto.enabled} onChange={(v) => setAuto({ ...auto, enabled: v })} label={auto.enabled ? "Autopilot is ON" : "Autopilot is OFF"} />
         <div className="grid gap-4 sm:grid-cols-3">

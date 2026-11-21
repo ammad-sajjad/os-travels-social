@@ -11,6 +11,8 @@ import { presets } from "./presets.js";
 import { mediaPath, saveFile } from "./storage.js";
 import { verifyConnection } from "./meta.js";
 import * as posts from "./posts.js";
+import crypto from "node:crypto";
+import { claimNext, finishJob, helperStatus } from "./localjobs.js";
 
 const app = new Hono();
 
@@ -38,6 +40,22 @@ app.get("/media/:name", async (c) => {
   }
 });
 
+// The Mac helper has its own key, which only opens these two routes.
+app.use("/helper/*", async (c, next) => {
+  const got = Buffer.from(c.req.header("x-helper-key") ?? "");
+  const want = Buffer.from(config.helperKey);
+  if (!want.length || got.length !== want.length || !crypto.timingSafeEqual(got, want)) return c.json({ error: "Unauthorized" }, 401);
+  await next();
+});
+app.post("/helper/next", async (c) => {
+  const job = await claimNext();
+  return job ? c.json(job) : c.body(null, 204);
+});
+app.post("/helper/jobs/:id/result", async (c) => {
+  await finishJob(c.req.param("id"), await c.req.json());
+  return c.json({ ok: true });
+});
+
 // Everything under /api needs the shared secret that only the website knows.
 app.use("/api/*", async (c, next) => {
   if (!config.apiKey) {
@@ -48,7 +66,7 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
-app.get("/api/status", (c) => c.json(keyStatus()));
+app.get("/api/status", (c) => c.json({ ...keyStatus(), helper: helperStatus() }));
 app.post("/api/meta/test", async (c) => {
   try {
     return c.json({ ok: true, ...(await verifyConnection()) });

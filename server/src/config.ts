@@ -28,6 +28,9 @@ export const config = {
 
   anthropicKey: env("ANTHROPIC_API_KEY"),
   claudeModel: env("CLAUDE_MODEL", "claude-sonnet-5-5"),
+  // "api" = Anthropic API key (fully automatic). "local" = Claude Code on the owner's Mac, via the helper.
+  claudeMode: (env("CLAUDE_MODE") || (env("ANTHROPIC_API_KEY") ? "api" : "local")) as "api" | "local",
+  helperKey: env("LOCAL_HELPER_KEY"),
 
   pexelsKey: env("PEXELS_API_KEY"),
 
@@ -42,6 +45,7 @@ export const config = {
 export function keyStatus() {
   return {
     anthropic: !!config.anthropicKey,
+    claude_mode: config.claudeMode,
     pexels: !!config.pexelsKey,
     meta_token: !!config.meta.token,
     meta_page_id: !!config.meta.pageId,

@@ -53,6 +53,15 @@ const MIGRATIONS = [
    )`,
   `CREATE INDEX IF NOT EXISTS posts_business_created ON posts (business_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS posts_due ON posts (status, publish_at)`,
+  `CREATE TABLE IF NOT EXISTS llm_jobs (
+     id TEXT PRIMARY KEY,
+     status TEXT NOT NULL,
+     payload JSONB NOT NULL,
+     result JSONB,
+     error TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+     claimed_at TIMESTAMPTZ
+   )`,
 ];
 
 export async function migrate() {

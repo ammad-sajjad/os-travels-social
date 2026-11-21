@@ -6,3 +6,4 @@ server/dist
 web/.next
 .DS_Store
 secrets.local.txt
+helper/*.log
