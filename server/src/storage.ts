@@ -22,9 +22,13 @@ export function localPathForUrl(url: string): string | null {
 export async function loadImage(url: string): Promise<Buffer> {
   const local = localPathForUrl(url);
   if (local) return fs.readFile(local);
-  const res = await fetch(url);
+  const { assertPublic } = await import("./webpage.js");
+  await assertPublic(new URL(url));
+  const res = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`Could not download image (${res.status}): ${url}`);
-  return Buffer.from(await res.arrayBuffer());
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > 25 * 1024 * 1024) throw new Error("Image is too large.");
+  return buf;
 }
 
 export function mediaPath(name: string) {

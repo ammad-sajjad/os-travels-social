@@ -3,11 +3,12 @@ import { query } from "./db.js";
 import { config } from "./config.js";
 import { getSetting, getRaw, setRaw, type Brand } from "./settings.js";
 import sharp from "sharp";
-import { BriefSchema, checkContent, drawBackgrounds, refineContent, suggestBrief, writeContent, type Brief, type Check, type Content, type RefineField } from "./claude.js";
+import { BriefSchema, checkContent, drawBackgrounds, pickLink, refineContent, suggestBrief, writeContent, type Brief, type Check, type Content, type RefineField } from "./claude.js";
 import { findPhoto } from "./pexels.js";
 import { loadImage, localPathForUrl, saveFile } from "./storage.js";
 import { renderCarousel, renderImagePost, renderReel } from "./render.js";
 import * as meta from "./meta.js";
+import { readPage } from "./webpage.js";
 
 export type MediaItem = { kind: "image" | "video" | "cover" | "source"; url: string; credit?: string };
 export type PlatformResult = { status: "published" | "failed" | "publishing"; id?: string; link?: string; error?: string; at?: string; [k: string]: unknown };
@@ -57,6 +58,26 @@ export async function createPost(input: unknown, source: "manual" | "autopilot" 
   return (await getPost(id))!;
 }
 
+/** Read the pasted link; if it's a general page (e.g. a home page), let Claude pick the page that matches the topic. */
+async function attachPage(brief: Brief): Promise<Brief> {
+  let page;
+  try {
+    page = await readPage(brief.link_url);
+  } catch (e) {
+    throw new Error(`Couldn't open the link ${brief.link_url}: ${(e as Error).message}`);
+  }
+  const chosen = await pickLink(`${brief.service ? brief.service + ": " : ""}${brief.topic}`, page);
+  if (chosen !== page.url) {
+    try {
+      page = await readPage(chosen);
+    } catch (e) {
+      console.warn(`Chosen link ${chosen} failed, using the pasted page:`, (e as Error).message);
+    }
+  }
+  const photo_urls = brief.use_link_image && page.image && !brief.photo_urls.length ? [page.image] : brief.photo_urls;
+  return { ...brief, photo_urls, page: { url: page.url, title: page.title, description: page.description, text: page.text, image: page.image } };
+}
+
 /** Claude writes -> independent check (one automatic fix attempt) -> photos -> render. */
 export async function generate(id: string) {
   try {
@@ -64,6 +85,10 @@ export async function generate(id: string) {
     const post = await getPost(id);
     if (!post) return;
     const brand = await getSetting("brand");
+    if (post.brief.link_url && !post.brief.page) {
+      post.brief = await attachPage(post.brief);
+      await update(id, { brief: post.brief });
+    }
     let content = await writeContent(brand, post.brief);
     let check = await checkContent(brand, post.brief, content);
     if (check.result === "fail") {

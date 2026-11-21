@@ -23,7 +23,10 @@ export type Post = {
   created_at: string;
   source: "manual" | "autopilot";
   status: "generating" | "ready" | "scheduled" | "publishing" | "published" | "partial" | "failed";
-  brief: { format: Format; topic: string; service: string; price: string; dates: string; details: string; tone: string; platforms: Platform[] };
+  brief: {
+    format: Format; topic: string; service: string; price: string; dates: string; details: string; tone: string; platforms: Platform[];
+    link_url?: string; page?: { url: string; title: string; description: string; image: string | null } | null;
+  };
   content: Content | null;
   media: { kind: "image" | "video" | "cover" | "source"; url: string; credit?: string }[];
   check_report: { result: "pass" | "fail"; checks: { name: string; status: "pass" | "fail" | "warn"; reason: string; fix: string | null }[] } | null;

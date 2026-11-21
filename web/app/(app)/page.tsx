@@ -22,6 +22,8 @@ export default function NewPostPage() {
   const [slides, setSlides] = useState(5);
   const [seconds, setSeconds] = useState(20);
   const [p, setP] = useState({ topic: "", details: "", visual: "", caption: "", hashtags: "", script: "" });
+  const [link, setLink] = useState("");
+  const [useLinkImage, setUseLinkImage] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -60,7 +62,7 @@ export default function NewPostPage() {
         method: "POST",
         json: {
           format, platforms, service, tone, slides, reel_seconds: seconds, photo_urls: photos,
-          topic: p.topic, details: p.details,
+          topic: p.topic, details: p.details, link_url: link.trim(), use_link_image: useLinkImage && !!link.trim(),
           visual_prompt: p.visual, caption_prompt: p.caption, hashtag_prompt: p.hashtags, script_prompt: p.script,
         },
       });
@@ -145,6 +147,23 @@ export default function NewPostPage() {
             <PromptBox label="Offer and details" hint="price, dates, what's included" value={p.details} onChange={setPrompt("details")}
               placeholder="e.g. PKR 2,45,000 per person, 15–22 March, flights + 4-star hotel + transfers, only 10 seats"
               chips={["Price per person", "Seats limited", "Booking deadline"]} />
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/60 p-3.5 shadow-sm focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-50">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-[11px] text-white">🔗</span>
+                <span className="text-sm font-semibold text-slate-800">Link to a web page</span>
+                <span className="text-xs text-slate-400">optional — Claude reads it and adds the link to the post</span>
+              </div>
+              <input type="text" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)}
+                placeholder="e.g. yoursite.com/malaysia-tour  or just  bookmyflight.com"
+                className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400" />
+              <p className="mt-2 text-xs text-slate-500">Paste a specific page, or a whole website — Claude will find the page on it that matches your topic (e.g. the Malaysia page).</p>
+              {link.trim() && !photos.length && (
+                <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                  <input type="checkbox" checked={useLinkImage} onChange={(e) => setUseLinkImage(e.target.checked)} />
+                  Use the page&apos;s main picture as the background (only if you have the right to use it)
+                </label>
+              )}
+            </div>
             <PromptBox label="The picture" hint={photos.length ? "your photos will be used" : "Claude draws it"} value={p.visual} onChange={setPrompt("visual")}
               placeholder="e.g. hot air balloons over Cappadocia at sunrise, warm golden colours"
               chips={["Sunset colours", "Famous landmark", "Family enjoying the view", "Calm and elegant"]} />
@@ -189,6 +208,7 @@ export default function NewPostPage() {
             <ul className="space-y-2.5 text-sm text-slate-600">
               {[
                 "Read every box and your brand guide",
+                ...(link.trim() ? ["Open your link, find the right page and add it to the post"] : []),
                 photos.length ? "Use your photos as the background" : "Draw the background picture",
                 format === "reel" ? "Write the scenes and build the reel" : format === "carousel" ? `Write and design ${slides} slides` : "Design the branded image",
                 "Write Facebook and Instagram captions",

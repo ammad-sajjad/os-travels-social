@@ -24,6 +24,14 @@ export const BriefSchema = z.object({
   caption_prompt: z.string().optional().default(""),
   hashtag_prompt: z.string().optional().default(""),
   script_prompt: z.string().optional().default(""),
+  // Web page the owner pasted; the server reads it and fills in `page`.
+  link_url: z.string().optional().default(""),
+  use_link_image: z.boolean().optional().default(false),
+  page: z
+    .object({ url: z.string(), title: z.string(), description: z.string(), text: z.string(), image: z.string().nullable() })
+    .nullable()
+    .optional()
+    .default(null),
 });
 export type Brief = z.infer<typeof BriefSchema>;
 
@@ -161,6 +169,12 @@ scenes: one per 3-5 seconds of the requested length. First scene = hook (max 3 s
 - hashtags: the full list you used (with #).
 - first_comment: optional extra hashtags or "More details: <WhatsApp link>", or null.
 
+## Linked web page
+If the brief includes a linked web page: use its details (places, inclusions, prices and dates exactly as written there) together with the brief, and include its URL:
+- caption_facebook: put the URL on its own line near the call to action (e.g. "Details: <url>").
+- caption_instagram: links are not clickable on Instagram, so write "Link in comments" near the call to action instead of the URL.
+- first_comment: "Details: <url>" (plus the WhatsApp link if there is one).
+
 ## The user's instructions for each part
 The brief may include separate instructions for the image, the caption, the hashtags and the reel script. Follow each one for its part, as long as it doesn't break the brand rules or the facts rule (if it does, follow the rules and keep as close to the request as possible).
 
@@ -168,7 +182,7 @@ The brief may include separate instructions for the image, the caption, the hash
 Keep their words. Only add what is missing (CTA, brand hashtags) and fix forbidden claims.
 
 ## Facts
-Use only facts from the brief and the brand guide. If a fact is missing, leave it out.
+Use only facts from the brief, the linked web page (if any) and the brand guide. If a fact is missing, leave it out.
 `;
 
 const CHECKER_RULES = `
@@ -177,7 +191,7 @@ You are an independent quality checker. You did not write this content. Be stric
 Check the post against the brief and the brand guide. Return each check as pass / fail / warn with a reason, and a concrete fix for every fail.
 
 Checks:
-1. facts: every price, date, number, inclusion, discount and availability claim matches the brief exactly. Anything not in the brief = fail.
+1. facts: every price, date, number, inclusion, discount and availability claim matches the brief or the linked web page exactly. Anything in neither = fail.
 2. claims: no guarantees, "cheapest", "No. 1", fake reviews or invented names; nothing from the brand's Never list.
 3. brand: business name correct; captions have a clear call to action with the correct contact detail.
 4. language: written in the brand's language and style.
@@ -221,7 +235,14 @@ function describeBrief(brief: Brief, extra = "") {
 - Instructions for the hashtags: ${brief.hashtag_prompt || "(none - follow the brand guide)"}
 - Instructions for the reel script: ${brief.format === "reel" ? brief.script_prompt || "(none - choose)" : "(not a reel)"}
 - Today's date: ${new Date().toISOString().slice(0, 10)}
-${extra}`;
+${brief.page ? `
+# Linked web page (include this URL in the post)
+- URL: ${brief.page.url}
+- Title: ${brief.page.title || "(none)"}
+- Description: ${brief.page.description || "(none)"}
+- Page text (facts you may use):
+${brief.page.text.slice(0, 6000) || "(the page had no readable text)"}
+` : ""}${extra}`;
 }
 
 export async function writeContent(brand: Brand, brief: Brief, feedback?: string): Promise<Content> {
@@ -308,4 +329,31 @@ export async function drawBackgrounds(descriptions: string[], width: number, hei
     for (let j = 0; j < batch.length; j++) out.push(res.svgs[j] ?? "");
   }
   return out;
+}
+
+// ---------------- Picking the right page on a website ----------------
+
+/** The owner pasted e.g. a home page; pick the link on it that best matches the post topic. */
+export async function pickLink(topic: string, page: { url: string; title: string; text: string; links: { url: string; text: string }[] }): Promise<string> {
+  if (!page.links.length) return page.url;
+  const Pick = z.object({ choice: z.enum(["this_page", "link"]), url: z.string().nullable() });
+  const res = await parse(
+    `# Your job
+You help pick which web page a social media post should link to. The owner pasted a page and described the post topic.
+- If the pasted page itself is already about the topic (e.g. a Malaysia package page for a Malaysia post), answer choice "this_page".
+- Otherwise pick the ONE link from the list whose page is most specifically about the topic (destination, package, route or service), and answer choice "link" with its exact URL from the list.
+- If nothing in the list fits better than the pasted page, answer "this_page".`,
+    `Post topic: ${topic}
+
+Pasted page: ${page.url}
+Title: ${page.title}
+Start of its text: ${page.text.slice(0, 1500)}
+
+Links on the page:
+${page.links.map((l) => `- ${l.url} | ${l.text}`).join("\n")}`,
+    Pick,
+    "low",
+  );
+  if (res.choice === "link" && res.url && page.links.some((l) => l.url === res.url)) return res.url;
+  return page.url;
 }

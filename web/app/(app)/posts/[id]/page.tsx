@@ -182,6 +182,17 @@ export default function PostPage() {
               </Card>
             )}
 
+            {post.brief.page && (
+              <Card className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-lg">🔗</span>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-500">Linked page (Claude read it and added it to the post)</p>
+                  <a href={post.brief.page.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-semibold text-indigo-700 hover:underline">{post.brief.page.title || post.brief.page.url}</a>
+                  <p className="truncate text-xs text-slate-400">{post.brief.page.url}</p>
+                </div>
+              </Card>
+            )}
+
             {(["caption_instagram", "caption_facebook"] as const).map((k) => (
               <Card key={k}>
                 <div className="mb-2 flex items-center justify-between">
