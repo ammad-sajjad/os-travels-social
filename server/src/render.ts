@@ -61,10 +61,15 @@ async function logoLayer(brand: Brand, width: number): Promise<Buffer | null> {
   }
 }
 
-function contactLine(brand: Brand) {
+function contactLine(brand: Brand, cta = "") {
   const c = brand.contact;
-  return [c.whatsapp && `WhatsApp ${c.whatsapp}`, c.website].filter(Boolean).join("  ·  ");
+  // Don't say "WhatsApp" twice when the call to action already does.
+  const wa = c.whatsapp && (/whatsapp/i.test(cta) ? c.whatsapp : `WhatsApp ${c.whatsapp}`);
+  return [wa, c.website].filter(Boolean).join("  ·  ");
 }
+
+/** Largest font size (up to max) that keeps a bold line inside the width, in the widest font we use. */
+const fitSize = (text: string, width: number, max: number) => Math.min(max, Math.floor(width / (text.length * 0.7)));
 
 type Slide = { headline: string; points?: string[]; text?: string; price?: string | null; cta?: string; showContact?: boolean };
 
@@ -96,10 +101,10 @@ async function renderPostImage(brand: Brand, photo: Buffer | null, s: Slide): Pr
     ? `<rect x="${POST_W - pad - 440}" y="${pad + 10}" rx="22" width="440" height="110" fill="${brand.colors.accent}"/>` +
       `<text x="${POST_W - pad - 220}" y="${pad + 82}" font-family="${FONT}" font-size="${s.price.length > 16 ? 38 : 48}" font-weight="800" fill="#111" text-anchor="middle">${esc(s.price)}</text>`
     : "";
-  const ctaText = [s.cta, s.showContact !== false ? contactLine(brand) : ""].filter(Boolean).join("  ·  ");
+  const ctaText = [s.cta, s.showContact !== false ? contactLine(brand, s.cta) : ""].filter(Boolean).join("  ·  ");
   const cta = ctaText
     ? `<rect x="0" y="${POST_H - ctaBar}" width="${POST_W}" height="${ctaBar}" fill="${brand.colors.primary}"/>` +
-      `<text x="${POST_W / 2}" y="${POST_H - ctaBar / 2 + 14}" font-family="${FONT}" font-size="${ctaText.length > 48 ? 32 : 40}" font-weight="700" fill="${brand.colors.text}" text-anchor="middle">${esc(ctaText)}</text>`
+      `<text x="${POST_W / 2}" y="${POST_H - ctaBar / 2 + 14}" font-family="${FONT}" font-size="${fitSize(ctaText, POST_W - 80, 40)}" font-weight="700" fill="${brand.colors.text}" text-anchor="middle">${esc(ctaText)}</text>`
     : "";
 
   const overlay = `<svg width="${POST_W}" height="${POST_H}" xmlns="http://www.w3.org/2000/svg">
@@ -150,11 +155,11 @@ async function reelOverlay(brand: Brand, text: string, opts: { last: boolean; pr
       `<text x="540" y="${y + 73}" font-family="${FONT}" font-size="${opts.price.length > 16 ? 38 : 50}" font-weight="800" fill="#111" text-anchor="middle">${esc(opts.price)}</text>`;
   }
   if (opts.last) {
-    const contact = contactLine(brand);
+    const contact = contactLine(brand, opts.cta);
     extra +=
       `<rect x="90" y="1280" rx="26" width="900" height="200" fill="${brand.colors.primary}" opacity="0.95"/>` +
-      `<text x="540" y="1365" font-family="${FONT}" font-size="54" font-weight="800" fill="${brand.colors.text}" text-anchor="middle">${esc(opts.cta)}</text>` +
-      (contact ? `<text x="540" y="1440" font-family="${FONT}" font-size="36" font-weight="600" fill="${brand.colors.text}" text-anchor="middle">${esc(contact)}</text>` : "");
+      `<text x="540" y="1365" font-family="${FONT}" font-size="${fitSize(opts.cta, 840, 54)}" font-weight="800" fill="${brand.colors.text}" text-anchor="middle">${esc(opts.cta)}</text>` +
+      (contact ? `<text x="540" y="1440" font-family="${FONT}" font-size="${fitSize(contact, 840, 36)}" font-weight="600" fill="${brand.colors.text}" text-anchor="middle">${esc(contact)}</text>` : "");
   }
   const svg = `<svg width="${REEL_W}" height="${REEL_H}" xmlns="http://www.w3.org/2000/svg">
     <defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.3" stop-color="#000" stop-opacity="0"/><stop offset="0.75" stop-color="#000" stop-opacity="0.55"/><stop offset="1" stop-color="#000" stop-opacity="0.2"/></linearGradient></defs>
