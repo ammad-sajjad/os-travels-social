@@ -1,0 +1,239 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { z } from "zod";
+import { config } from "./config.js";
+import type { Brand } from "./settings.js";
+import { industryPacks } from "./packs.js";
+
+export const BriefSchema = z.object({
+  format: z.enum(["image", "carousel", "reel"]).default("image"),
+  platforms: z.array(z.enum(["facebook", "instagram"])).min(1),
+  service: z.string().optional().default(""),
+  topic: z.string().min(1),
+  price: z.string().optional().default(""),
+  dates: z.string().optional().default(""),
+  details: z.string().optional().default(""),
+  tone: z.string().optional().default(""),
+  slides: z.number().int().min(3).max(10).optional().default(5),
+  reel_seconds: z.number().int().min(10).max(90).optional().default(20),
+  own_caption: z.string().optional().default(""),
+  own_hashtags: z.string().optional().default(""),
+  photo_urls: z.array(z.string()).optional().default([]),
+});
+export type Brief = z.infer<typeof BriefSchema>;
+
+export const ContentSchema = z.object({
+  hook: z.string().describe("Scroll-stopping first line, max 10 words"),
+  headline: z.string().describe("Headline printed on the image, max 6 words"),
+  points: z.array(z.string()).describe("0-3 short bullet points for the image, max 5 words each"),
+  price_badge: z.string().nullable().describe("Price text for a badge, ONLY if a price is in the brief, else null"),
+  cta: z.string().describe("Short call to action printed on the image"),
+  image_search: z.string().describe("Specific English stock-photo search for the main image"),
+  slides: z
+    .array(z.object({ headline: z.string(), text: z.string(), image_search: z.string() }))
+    .describe("Carousel slides (only when format is carousel, else empty)"),
+  scenes: z
+    .array(z.object({ on_screen: z.string(), image_search: z.string(), seconds: z.number() }))
+    .describe("Reel scenes (only when format is reel, else empty)"),
+  caption_instagram: z.string(),
+  caption_facebook: z.string(),
+  hashtags: z.array(z.string()),
+  first_comment: z.string().nullable(),
+});
+export type Content = z.infer<typeof ContentSchema>;
+
+export const CheckSchema = z.object({
+  result: z.enum(["pass", "fail"]),
+  checks: z.array(
+    z.object({
+      name: z.string(),
+      status: z.enum(["pass", "fail", "warn"]),
+      reason: z.string(),
+      fix: z.string().nullable(),
+    }),
+  ),
+});
+export type Check = z.infer<typeof CheckSchema>;
+
+let client: Anthropic | null = null;
+function claude() {
+  if (!config.anthropicKey) throw new Error("ANTHROPIC_API_KEY is not set on the server.");
+  client ??= new Anthropic({ apiKey: config.anthropicKey });
+  return client;
+}
+
+function list(items: string[]) {
+  return items.filter(Boolean).map((s) => `- ${s}`).join("\n");
+}
+
+export function waLink(brand: Brand) {
+  const digits = brand.contact.whatsapp.replace(/\D/g, "");
+  return digits ? `https://wa.me/${digits}` : "";
+}
+
+/** The "skill" for this business, rebuilt from Settings. Stable text so it caches well. */
+export function brandInstructions(brand: Brand) {
+  const c = brand.contact;
+  return `# ${brand.business_name} - brand guide
+
+## Who we are
+${brand.description || "(not set)"}
+
+## Audience
+${brand.audience || "(not set)"}
+
+## Language
+Write all post text and captions in: ${brand.language}
+
+## Personality
+${list(brand.personality) || "- Helpful and trustworthy."}
+
+## Tone presets (the brief picks one; if none, choose the best fit)
+${brand.tones.map((t) => `- ${t.name}: ${t.guidance}`).join("\n")}
+
+## Services
+${brand.services.map((s) => `### ${s.name}\n${s.guidance}`).join("\n\n") || "(any)"}
+
+## Call to action
+Default: "${brand.cta_default}". Others: ${brand.cta_options.map((o) => `"${o}"`).join(", ") || "-"}
+
+## Contact details (use exactly these, never invent others; skip empty ones)
+- Phone: ${c.phone || "-"}
+- WhatsApp: ${c.whatsapp || "-"}
+- WhatsApp link: ${waLink(brand) || "-"}
+- Website: ${c.website || "-"}
+- Address: ${c.address || "-"}
+- Licence no.: ${c.licence || "-"}
+
+## Always
+${list(brand.always) || "- Use the business name exactly as written above."}
+
+## Never
+${list(brand.never)}
+- Never invent prices, dates, discounts, availability, guarantees or statistics that are not in the brief.
+- Never write fake reviews, testimonials or customer names.
+
+## Good words
+${brand.good_words.join(", ") || "-"}
+
+## Numbers
+${brand.number_format || "-"}
+
+## Emojis
+${brand.emoji_guidance}
+
+## Hashtags
+Brand hashtags (always include): ${brand.brand_hashtags.join(" ") || "-"}
+${brand.hashtag_guidance}
+
+${brand.extra_guidelines ? `## Extra guidelines\n${brand.extra_guidelines}` : ""}
+
+${industryPacks[brand.industry] ?? industryPacks.general}
+`;
+}
+
+const WRITER_RULES = `
+# Your job
+You are the social media content writer for this business. You receive a brief and return one post for Facebook and Instagram as JSON.
+
+## Hook (first line)
+Max 10 words. Pick one type: question, price (only if price in brief), bold statement, POV, list ("3 jagahen..."), problem, urgency (only if seats/deadline in brief).
+
+## Image text
+- headline: max 6 words. points: max 3, max 5 words each. cta: max 5 words.
+- price_badge: only if the brief gives a price, written in the brand's number format; otherwise null.
+- image_search: a specific English photo search for a stock-photo site (landmark/scene + mood), never just a country or a generic word.
+
+## Carousel (format = carousel)
+slides: exactly the requested number. Slide 1 = the hook as headline. Middle slides = one highlight or step each. Last slide = offer + call to action. Each slide: headline (max 6 words), text (max 18 words), image_search.
+
+## Reel (format = reel)
+scenes: one per 3-5 seconds of the requested length. First scene = hook (max 3 s). Last scene = call to action. on_screen max 6 words.
+
+## Captions
+- Instagram: line 1 = the hook (first 125 characters show before "more"); 3-5 short lines (highlights, what's included, price only if in brief); CTA line with the WhatsApp number; hashtags at the end (5-10 total). Max 2,200 characters.
+- Facebook: same hook, a bit more detail (up to 8 lines), CTA with the WhatsApp link; 3-5 hashtags.
+- hashtags: the full list you used (with #).
+- first_comment: optional extra hashtags or "More details: <WhatsApp link>", or null.
+
+## If the brief includes the user's own caption or hashtags
+Keep their words. Only add what is missing (CTA, brand hashtags) and fix forbidden claims.
+
+## Facts
+Use only facts from the brief and the brand guide. If a fact is missing, leave it out.
+`;
+
+const CHECKER_RULES = `
+# Your job
+You are an independent quality checker. You did not write this content. Be strict.
+Check the post against the brief and the brand guide. Return each check as pass / fail / warn with a reason, and a concrete fix for every fail.
+
+Checks:
+1. facts: every price, date, number, inclusion, discount and availability claim matches the brief exactly. Anything not in the brief = fail.
+2. claims: no guarantees, "cheapest", "No. 1", fake reviews or invented names; nothing from the brand's Never list.
+3. brand: business name correct; captions have a clear call to action with the correct contact detail.
+4. language: written in the brand's language and style.
+5. format: headline/points/hashtag counts within limits; Instagram caption under 2,200 characters.
+6. sensitivity: respectful of religion and culture; modest imagery searches.
+Any fail = result "fail". Warnings do not block.
+`;
+
+async function parse<T extends z.ZodType>(system: string, user: string, schema: T, effort: "low" | "medium"): Promise<z.infer<T>> {
+  const response = await claude().beta.messages.parse({
+    model: config.claudeModel,
+    max_tokens: 16000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort, format: betaZodOutputFormat(schema) },
+    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: user }],
+  });
+  if (response.stop_reason === "refusal") {
+    throw new Error(`Claude declined this request${response.stop_details?.explanation ? `: ${response.stop_details.explanation}` : "."}`);
+  }
+  if (response.stop_reason === "max_tokens") throw new Error("Claude's answer was cut off (max_tokens).");
+  if (!response.parsed_output) throw new Error("Claude returned an answer that did not match the expected format.");
+  return response.parsed_output as z.infer<T>;
+}
+
+function describeBrief(brief: Brief, extra = "") {
+  return `# Brief
+- Format: ${brief.format}${brief.format === "carousel" ? ` (${brief.slides} slides)` : ""}${brief.format === "reel" ? ` (${brief.reel_seconds} seconds)` : ""}
+- Platforms: ${brief.platforms.join(", ")}
+- Service / category: ${brief.service || "(not given)"}
+- Topic: ${brief.topic}
+- Price: ${brief.price || "(none - do not mention any price)"}
+- Dates: ${brief.dates || "(none - do not mention dates)"}
+- Other details: ${brief.details || "(none)"}
+- Tone: ${brief.tone || "(choose the best fit)"}
+- User's own caption: ${brief.own_caption || "(none - write it)"}
+- User's own hashtags: ${brief.own_hashtags || "(none)"}
+- Today's date: ${new Date().toISOString().slice(0, 10)}
+${extra}`;
+}
+
+export async function writeContent(brand: Brand, brief: Brief, feedback?: string): Promise<Content> {
+  const extra = feedback ? `\n# Fix these problems from the quality check\n${feedback}` : "";
+  return parse(brandInstructions(brand) + WRITER_RULES, describeBrief(brief, extra), ContentSchema, "medium");
+}
+
+export async function checkContent(brand: Brand, brief: Brief, content: Content): Promise<Check> {
+  return parse(
+    brandInstructions(brand) + CHECKER_RULES,
+    `${describeBrief(brief)}\n\n# Post to check\n${JSON.stringify(content, null, 2)}`,
+    CheckSchema,
+    "low",
+  );
+}
+
+/** For autopilot: pick today's post idea. */
+export async function suggestBrief(brand: Brand, topics: string[], recent: string[]): Promise<{ service: string; topic: string; tone: string }> {
+  const Idea = z.object({ service: z.string(), topic: z.string(), tone: z.string() });
+  return parse(
+    brandInstructions(brand) +
+      `\n# Your job\nSuggest ONE social media post idea for today. Consider season, upcoming holidays and variety. Do not invent prices or offers; pick an evergreen angle.`,
+    `Topics the owner wants covered (rotate through them): ${topics.join("; ") || "(any of our services)"}\nRecently posted (avoid repeating): ${recent.join("; ") || "(nothing yet)"}\nToday: ${new Date().toISOString().slice(0, 10)}`,
+    Idea,
+    "low",
+  );
+}
