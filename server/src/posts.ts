@@ -2,9 +2,10 @@ import crypto from "node:crypto";
 import { query } from "./db.js";
 import { config } from "./config.js";
 import { getSetting, getRaw, setRaw, type Brand } from "./settings.js";
-import { BriefSchema, checkContent, suggestBrief, writeContent, type Brief, type Check, type Content } from "./claude.js";
+import sharp from "sharp";
+import { BriefSchema, checkContent, drawBackgrounds, refineContent, suggestBrief, writeContent, type Brief, type Check, type Content, type RefineField } from "./claude.js";
 import { findPhoto } from "./pexels.js";
-import { loadImage, localPathForUrl } from "./storage.js";
+import { loadImage, localPathForUrl, saveFile } from "./storage.js";
 import { renderCarousel, renderImagePost, renderReel } from "./render.js";
 import * as meta from "./meta.js";
 
@@ -79,26 +80,56 @@ export async function generate(id: string) {
   }
 }
 
-async function render(brand: Brand, brief: Brief, content: Content): Promise<MediaItem[]> {
-  const searches =
+/**
+ * Background for each image/slide/scene: reused picture (on re-render) -> owner's photo -> Pexels (only if a key is set)
+ * -> a picture Claude draws itself. Then the branded images/reel are rendered.
+ */
+async function render(brand: Brand, brief: Brief, content: Content, reuse?: string[]): Promise<MediaItem[]> {
+  const descs =
     brief.format === "carousel" ? content.slides.map((s) => s.image_search)
     : brief.format === "reel" ? content.scenes.map((s) => s.image_search)
     : [content.image_search];
+  const [W, H] = brief.format === "reel" ? [1080, 1920] : [1080, 1350];
+  const own = brief.photo_urls;
+  const urls: (string | undefined)[] = descs.map((_, i) => reuse?.[i] ?? own[i] ?? (own.length ? own[i % own.length] : undefined));
+  const credits: (string | undefined)[] = descs.map(() => undefined);
+
+  if (config.pexelsKey) {
+    for (let i = 0; i < descs.length; i++) {
+      if (urls[i]) continue;
+      const found = await findPhoto(descs[i], "portrait").catch(() => null);
+      if (found) { urls[i] = found.url; credits[i] = found.credit; }
+    }
+  }
+
+  const missing = descs.map((_, i) => i).filter((i) => !urls[i]);
+  if (missing.length) {
+    const svgs = await drawBackgrounds(missing.map((i) => descs[i]), W, H).catch((e) => {
+      console.warn("Claude drawing failed, using brand colours:", (e as Error).message);
+      return [] as string[];
+    });
+    for (let k = 0; k < missing.length; k++) {
+      // Strip anything that could load external content before rendering.
+      const svg = svgs[k]?.replace(/<(image|script|foreignObject|use)\b[\s\S]*?(\/>|<\/\1>)/gi, "").replace(/(xlink:)?href\s*=\s*["'][^"']*["']/gi, "");
+      if (!svg?.includes("<svg")) continue;
+      try {
+        const jpg = await sharp(Buffer.from(svg)).resize(W, H, { fit: "cover" }).jpeg({ quality: 92 }).toBuffer();
+        urls[missing[k]] = (await saveFile(jpg, "jpg")).url;
+        credits[missing[k]] = "Illustration drawn by Claude";
+      } catch (e) {
+        console.warn("Could not render Claude's drawing:", (e as Error).message);
+      }
+    }
+  }
+
   const sources: MediaItem[] = [];
   const photos: (Buffer | null)[] = [];
-  for (let i = 0; i < searches.length; i++) {
-    const own = brief.photo_urls[i] ?? (brief.photo_urls.length ? brief.photo_urls[i % brief.photo_urls.length] : undefined);
-    let url: string | undefined = own;
-    let credit: string | undefined;
-    if (!url) {
-      const found = await findPhoto(searches[i], brief.format === "reel" ? "portrait" : "portrait");
-      url = found?.url;
-      credit = found?.credit;
-    }
+  for (let i = 0; i < descs.length; i++) {
+    const url = urls[i];
     if (url) {
       try {
         photos.push(await loadImage(url));
-        sources.push({ kind: "source", url, credit });
+        sources.push({ kind: "source", url, credit: credits[i] });
         continue;
       } catch (e) {
         console.warn("photo load failed", (e as Error).message);
@@ -114,6 +145,44 @@ async function render(brand: Brand, brief: Brief, content: Content): Promise<Med
   return [...(await renderImagePost(brand, content, photos[0] ?? null)).map((f) => ({ kind: "image" as const, url: f.url })), ...sources];
 }
 
+const REFINE_KEYS: Record<RefineField, (keyof Content)[]> = {
+  image: ["headline", "points", "price_badge", "cta", "slides", "scenes"],
+  visual: ["image_search", "slides", "scenes"],
+  caption_instagram: ["caption_instagram"],
+  caption_facebook: ["caption_facebook"],
+  hashtags: ["hashtags", "caption_instagram", "caption_facebook"],
+  first_comment: ["first_comment"],
+};
+
+/** "Ask Claude" box on one part of the post. Runs in the background; the page polls. */
+export async function refinePost(id: string, field: RefineField, instruction: string) {
+  if (!REFINE_KEYS[field]) throw new Error("Unknown part of the post.");
+  if (!instruction.trim()) throw new Error("Type what you want changed.");
+  const post = await getPost(id);
+  if (!post || !post.content) throw new Error("Post not found or not generated yet.");
+  if (!["ready", "failed", "scheduled"].includes(post.status)) throw new Error(`Cannot change a post that is ${post.status}.`);
+  const back = post.status === "failed" ? "ready" : post.status;
+  await update(id, { status: "generating", error: null });
+  void (async () => {
+    try {
+      const brand = await getSetting("brand");
+      const updated = await refineContent(brand, post.brief, post.content!, field, instruction);
+      const content = { ...post.content! } as Record<string, unknown>;
+      for (const k of REFINE_KEYS[field]) content[k] = updated[k];
+      const next = content as Content;
+      let media = post.media;
+      if (field === "image") media = await render(brand, post.brief, next, post.media.filter((m) => m.kind === "source").map((m) => m.url));
+      if (field === "visual") media = await render(brand, post.brief, next);
+      const check = await checkContent(brand, post.brief, next);
+      await update(id, { content: next, media, check_report: check, status: back });
+    } catch (e) {
+      console.error(`refine ${id} failed`, e);
+      await update(id, { status: back, error: `Claude couldn't make that change: ${(e as Error).message}` });
+    }
+  })();
+  return getPost(id);
+}
+
 /** Owner edited the text. Captions need no re-render; on-image text does. */
 export async function editPost(id: string, patch: { content?: Partial<Content>; platforms?: Post["platforms"]; rerender?: boolean }) {
   const post = await getPost(id);
@@ -125,8 +194,8 @@ export async function editPost(id: string, patch: { content?: Partial<Content>; 
   await update(id, fields);
   if (patch.rerender) {
     const brand = await getSetting("brand");
-    const own = post.media.filter((m) => m.kind === "source").map((m) => m.url);
-    const media = await render(brand, { ...post.brief, photo_urls: own.length ? own : post.brief.photo_urls }, content);
+    const reuse = post.media.filter((m) => m.kind === "source").map((m) => m.url);
+    const media = await render(brand, post.brief, content, reuse);
     await update(id, { media, status: post.status === "failed" ? "ready" : post.status });
   }
   return getPost(id);

@@ -19,6 +19,11 @@ export const BriefSchema = z.object({
   own_caption: z.string().optional().default(""),
   own_hashtags: z.string().optional().default(""),
   photo_urls: z.array(z.string()).optional().default([]),
+  // Free-text instructions, one per part of the post ("chat boxes" in the form).
+  visual_prompt: z.string().optional().default(""),
+  caption_prompt: z.string().optional().default(""),
+  hashtag_prompt: z.string().optional().default(""),
+  script_prompt: z.string().optional().default(""),
 });
 export type Brief = z.infer<typeof BriefSchema>;
 
@@ -28,7 +33,7 @@ export const ContentSchema = z.object({
   points: z.array(z.string()).describe("0-3 short bullet points for the image, max 5 words each"),
   price_badge: z.string().nullable().describe("Price text for a badge, ONLY if a price is in the brief, else null"),
   cta: z.string().describe("Short call to action printed on the image"),
-  image_search: z.string().describe("Specific English stock-photo search for the main image"),
+  image_search: z.string().describe("English description of the main background picture: place, scene, time of day, mood"),
   slides: z
     .array(z.object({ headline: z.string(), text: z.string(), image_search: z.string() }))
     .describe("Carousel slides (only when format is carousel, else empty)"),
@@ -142,7 +147,7 @@ Max 10 words. Pick one type: question, price (only if price in brief), bold stat
 ## Image text
 - headline: max 6 words. points: max 3, max 5 words each. cta: max 5 words.
 - price_badge: only if the brief gives a price, written in the brand's number format; otherwise null.
-- image_search: a specific English photo search for a stock-photo site (landmark/scene + mood), never just a country or a generic word.
+- image_search: an English description of the background picture (specific landmark or scene, time of day, mood), never just a country or a generic word. It is used to draw or find the picture. Follow the user's image instructions.
 
 ## Carousel (format = carousel)
 slides: exactly the requested number. Slide 1 = the hook as headline. Middle slides = one highlight or step each. Last slide = offer + call to action. Each slide: headline (max 6 words), text (max 18 words), image_search.
@@ -155,6 +160,9 @@ scenes: one per 3-5 seconds of the requested length. First scene = hook (max 3 s
 - Facebook: same hook, a bit more detail (up to 8 lines), CTA with the WhatsApp link; 3-5 hashtags.
 - hashtags: the full list you used (with #).
 - first_comment: optional extra hashtags or "More details: <WhatsApp link>", or null.
+
+## The user's instructions for each part
+The brief may include separate instructions for the image, the caption, the hashtags and the reel script. Follow each one for its part, as long as it doesn't break the brand rules or the facts rule (if it does, follow the rules and keep as close to the request as possible).
 
 ## If the brief includes the user's own caption or hashtags
 Keep their words. Only add what is missing (CTA, brand hashtags) and fix forbidden claims.
@@ -202,12 +210,16 @@ function describeBrief(brief: Brief, extra = "") {
 - Platforms: ${brief.platforms.join(", ")}
 - Service / category: ${brief.service || "(not given)"}
 - Topic: ${brief.topic}
-- Price: ${brief.price || "(none - do not mention any price)"}
-- Dates: ${brief.dates || "(none - do not mention dates)"}
-- Other details: ${brief.details || "(none)"}
+- Price: ${brief.price || "(only if stated in the details below; otherwise do not mention any price)"}
+- Dates: ${brief.dates || "(only if stated in the details below; otherwise do not mention dates)"}
+- Offer and other details: ${brief.details || "(none)"}
 - Tone: ${brief.tone || "(choose the best fit)"}
 - User's own caption: ${brief.own_caption || "(none - write it)"}
 - User's own hashtags: ${brief.own_hashtags || "(none)"}
+- Instructions for the image: ${brief.visual_prompt || "(none - choose)"}
+- Instructions for the caption: ${brief.caption_prompt || "(none - follow the brand guide)"}
+- Instructions for the hashtags: ${brief.hashtag_prompt || "(none - follow the brand guide)"}
+- Instructions for the reel script: ${brief.format === "reel" ? brief.script_prompt || "(none - choose)" : "(not a reel)"}
 - Today's date: ${new Date().toISOString().slice(0, 10)}
 ${extra}`;
 }
@@ -236,4 +248,64 @@ export async function suggestBrief(brand: Brand, topics: string[], recent: strin
     Idea,
     "low",
   );
+}
+
+// ---------------- "Ask Claude" edits to one part ----------------
+
+export type RefineField = "image" | "visual" | "caption_instagram" | "caption_facebook" | "hashtags" | "first_comment";
+
+const FIELD_HELP: Record<RefineField, string> = {
+  image: "the text printed on the image(s): headline, points, price_badge, cta, and slides[].headline/text or scenes[].on_screen",
+  visual: "the background picture descriptions: image_search, and slides[].image_search or scenes[].image_search",
+  caption_instagram: "caption_instagram",
+  caption_facebook: "caption_facebook",
+  hashtags: "the hashtags list, and the hashtags at the end of caption_instagram and caption_facebook",
+  first_comment: "first_comment",
+};
+
+export async function refineContent(brand: Brand, brief: Brief, content: Content, field: RefineField, instruction: string): Promise<Content> {
+  return parse(
+    brandInstructions(brand) + WRITER_RULES,
+    `${describeBrief(brief)}
+
+# Current post
+${JSON.stringify(content, null, 2)}
+
+# Change request from the owner
+Part to change: ${FIELD_HELP[field]}
+Request: ${instruction}
+
+Return the whole post JSON. Change ONLY the part named above, exactly as requested, keeping the brand rules and facts rule. Copy every other field unchanged.`,
+    ContentSchema,
+    "medium",
+  );
+}
+
+// ---------------- Claude-drawn backgrounds (no stock photos needed) ----------------
+
+const ART_RULES = `
+# Your job
+You are an illustrator. For each description, draw one background picture as a standalone SVG.
+- Style: rich flat-vector travel-poster illustration with layered shapes and gradients (sky, horizon, landmark silhouettes, water, mountains, light). Recognisable landmark shapes where named.
+- NO text, letters, numbers or logos anywhere.
+- No people's faces; any people are small silhouettes and modestly dressed. Respectful for religious places (exteriors only).
+- The lower 45% will be covered by dark text overlay: keep detail mostly in the upper part.
+- Use the exact width/height given, with viewBox set to match. Only basic SVG elements (rect, circle, ellipse, path, polygon, linearGradient, radialGradient, g). No <image>, no <text>, no external references, no filters.
+- Keep each SVG under 7,000 characters.
+`;
+
+export async function drawBackgrounds(descriptions: string[], width: number, height: number): Promise<string[]> {
+  const Art = z.object({ svgs: z.array(z.string()) });
+  const out: string[] = [];
+  for (let i = 0; i < descriptions.length; i += 3) {
+    const batch = descriptions.slice(i, i + 3);
+    const res = await parse(
+      ART_RULES,
+      `Canvas: width ${width}, height ${height}.\nDraw ${batch.length} SVG(s), in this order:\n${batch.map((d, j) => `${j + 1}. ${d}`).join("\n")}`,
+      Art,
+      "low",
+    );
+    for (let j = 0; j < batch.length; j++) out.push(res.svgs[j] ?? "");
+  }
+  return out;
 }

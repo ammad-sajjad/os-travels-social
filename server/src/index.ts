@@ -97,6 +97,10 @@ app.post("/api/posts/:id/regenerate", async (c) => {
   void posts.generate(c.req.param("id"));
   return c.json({ ok: true });
 });
+app.post("/api/posts/:id/refine", async (c) => {
+  const body = await c.req.json();
+  return c.json(await posts.refinePost(c.req.param("id"), body.field, String(body.instruction ?? "")));
+});
 app.post("/api/posts/:id/publish", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   return c.json(await posts.schedule(c.req.param("id"), body.publish_at));

@@ -36,7 +36,7 @@ export default function SetupPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Connections</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Connections</h1>
         <p className="text-sm text-slate-500">Keys are set as environment variables on the Railway server (never in this website). See README for where each one comes from.</p>
       </div>
       <ErrorBox message={error} />
@@ -48,7 +48,6 @@ export default function SetupPage() {
             <Row ok={status.meta_token} label="Meta System User token" hint="Set META_SYSTEM_USER_TOKEN on Railway." />
             <Row ok={status.meta_page_id} label="Facebook Page ID" hint="Set META_PAGE_ID on Railway." />
             <Row ok={status.meta_ig_user_id} label="Instagram account ID" hint="Set META_IG_USER_ID on Railway (only needed for Instagram)." />
-            <Row ok={status.pexels} label="Stock photos (Pexels)" hint="Optional. Set PEXELS_API_KEY on Railway for automatic photos." />
             <Row ok={status.database === "postgres"} label="Postgres database" hint="Attach a Postgres database on Railway (DATABASE_URL). The built-in database works but Postgres is recommended." />
             <Row ok={status.public_url.startsWith("https://")} label={`Public media link: ${status.public_url}`} hint="Instagram downloads images from this link, so it must be a public https address (Railway: generate a domain)." />
           </ul>

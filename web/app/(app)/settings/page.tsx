@@ -88,7 +88,7 @@ export default function SettingsPage() {
     <div className="space-y-5 pb-24">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Brand & autopilot</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Brand & autopilot</h1>
           <p className="text-sm text-slate-500">Everything Claude needs to write like this business. Change it any time.</p>
         </div>
         {!!presets.length && (
@@ -103,7 +103,7 @@ export default function SettingsPage() {
       </div>
 
       <Card className="grid gap-4 sm:grid-cols-2">
-        <h2 className="font-semibold sm:col-span-2">Business</h2>
+        <h2 className="text-base font-semibold text-slate-900 sm:col-span-2">Business</h2>
         <div><Label>Business name (exactly as it should appear)</Label><Input value={brand.business_name} onChange={set("business_name")} /></div>
         <div>
           <Label>Industry</Label>
@@ -119,7 +119,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card className="grid gap-4 sm:grid-cols-2">
-        <h2 className="font-semibold sm:col-span-2">Contact details (printed on posts)</h2>
+        <h2 className="text-base font-semibold text-slate-900 sm:col-span-2">Contact details (printed on posts)</h2>
         <div><Label>WhatsApp number</Label><Input value={brand.contact.whatsapp} onChange={setContact("whatsapp")} placeholder="+92 300 1234567" /></div>
         <div><Label>Phone</Label><Input value={brand.contact.phone} onChange={setContact("phone")} /></div>
         <div><Label>Website</Label><Input value={brand.contact.website} onChange={setContact("website")} /></div>
@@ -128,7 +128,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card className="grid gap-4 sm:grid-cols-2">
-        <h2 className="font-semibold sm:col-span-2">Look</h2>
+        <h2 className="text-base font-semibold text-slate-900 sm:col-span-2">Look</h2>
         <div>
           <Label hint="transparent PNG works best">Logo</Label>
           <div className="flex items-center gap-3">
@@ -145,7 +145,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card className="grid gap-4 sm:grid-cols-2">
-        <h2 className="font-semibold sm:col-span-2">How to write</h2>
+        <h2 className="text-base font-semibold text-slate-900 sm:col-span-2">How to write</h2>
         <div className="sm:col-span-2"><Label hint='one per line, "Name: how to write it"'>Services</Label><Textarea rows={5} value={text.services} onChange={setText_("services")} /></div>
         <div className="sm:col-span-2"><Label hint='one per line, "Name: how it sounds"'>Tones</Label><Textarea rows={4} value={text.tones} onChange={setText_("tones")} /></div>
         <div><Label>Main call to action</Label><Input value={brand.cta_default} onChange={set("cta_default")} /></div>
@@ -162,7 +162,7 @@ export default function SettingsPage() {
 
       <Card className="space-y-4">
         <div>
-          <h2 className="font-semibold">Autopilot (daily automatic post)</h2>
+          <h2 className="text-base font-semibold text-slate-900">Autopilot (daily automatic post)</h2>
           <p className="text-sm text-slate-500">When on, Claude picks a topic and posts once a day at the time below, with nobody pressing a button. Leave it off until you trust the manual posts.</p>
         </div>
         <Toggle checked={auto.enabled} onChange={(v) => setAuto({ ...auto, enabled: v })} label={auto.enabled ? "Autopilot is ON" : "Autopilot is OFF"} />

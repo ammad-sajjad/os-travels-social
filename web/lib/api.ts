@@ -42,7 +42,7 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
     cache: "no-store",
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && typeof window !== "undefined") window.location.href = "/login";
+  if (res.status === 401 && typeof window !== "undefined") window.location.assign("/login");
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
   return data as T;
 }
@@ -79,11 +79,11 @@ export const statusLabel: Record<Post["status"], string> = {
 };
 
 export const statusColor: Record<Post["status"], string> = {
-  generating: "bg-blue-100 text-blue-800",
+  generating: "bg-indigo-100 text-indigo-800",
   ready: "bg-amber-100 text-amber-800",
-  scheduled: "bg-purple-100 text-purple-800",
-  publishing: "bg-blue-100 text-blue-800",
-  published: "bg-green-100 text-green-800",
+  scheduled: "bg-violet-100 text-violet-800",
+  publishing: "bg-indigo-100 text-indigo-800",
+  published: "bg-emerald-100 text-emerald-800",
   partial: "bg-orange-100 text-orange-800",
   failed: "bg-red-100 text-red-800",
 };
