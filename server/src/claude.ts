@@ -29,7 +29,7 @@ export const BriefSchema = z.object({
   link_url: z.string().optional().default(""),
   use_link_image: z.boolean().optional().default(false),
   page: z
-    .object({ url: z.string(), title: z.string(), description: z.string(), text: z.string(), image: z.string().nullable() })
+    .object({ url: z.string(), title: z.string(), description: z.string(), text: z.string(), image: z.string().nullable(), unreadable: z.boolean().optional() })
     .nullable()
     .optional()
     .default(null),
@@ -246,7 +246,7 @@ ${brief.page ? `
 - Title: ${brief.page.title || "(none)"}
 - Description: ${brief.page.description || "(none)"}
 - Page text (facts you may use):
-${brief.page.text.slice(0, 6000) || "(the page had no readable text)"}
+${brief.page.text.slice(0, 6000) || "(the page could not be read: use no facts from it, only include the URL)"}
 ` : ""}${extra}`;
 }
 

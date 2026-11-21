@@ -25,7 +25,7 @@ export type Post = {
   status: "generating" | "ready" | "scheduled" | "publishing" | "published" | "partial" | "failed";
   brief: {
     format: Format; topic: string; service: string; price: string; dates: string; details: string; tone: string; platforms: Platform[];
-    link_url?: string; page?: { url: string; title: string; description: string; image: string | null } | null;
+    link_url?: string; page?: { url: string; title: string; description: string; image: string | null; unreadable?: boolean } | null;
   };
   content: Content | null;
   media: { kind: "image" | "video" | "cover" | "source"; url: string; credit?: string }[];

@@ -8,7 +8,7 @@ import { findPhoto } from "./pexels.js";
 import { loadImage, localPathForUrl, saveFile } from "./storage.js";
 import { renderCarousel, renderImagePost, renderReel } from "./render.js";
 import * as meta from "./meta.js";
-import { readPage } from "./webpage.js";
+import { normaliseUrl, readPage } from "./webpage.js";
 
 export type MediaItem = { kind: "image" | "video" | "cover" | "source"; url: string; credit?: string };
 export type PlatformResult = { status: "published" | "failed" | "publishing"; id?: string; link?: string; error?: string; at?: string; [k: string]: unknown };
@@ -64,7 +64,13 @@ async function attachPage(brief: Brief): Promise<Brief> {
   try {
     page = await readPage(brief.link_url);
   } catch (e) {
-    throw new Error(`Couldn't open the link ${brief.link_url}: ${(e as Error).message}`);
+    const message = (e as Error).message;
+    // The site refused or failed (many block cloud servers): keep the link, use only the brief's facts.
+    if (message.startsWith("The page answered with error") || /timeout|aborted|fetch failed/i.test(message)) {
+      console.warn(`Could not read ${brief.link_url}: ${message}`);
+      return { ...brief, page: { url: normaliseUrl(brief.link_url).toString(), title: "", description: "", text: "", image: null, unreadable: true } };
+    }
+    throw new Error(`Couldn't open the link ${brief.link_url}: ${message}`);
   }
   const chosen = await pickLink(`${brief.service ? brief.service + ": " : ""}${brief.topic}`, page);
   if (chosen !== page.url) {

@@ -185,7 +185,7 @@ export default function PostPage() {
               <Card className="flex items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sand text-lg">🔗</span>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-muted">Linked page (Claude read it and added it to the post)</p>
+                  <p className="text-xs font-medium text-muted">{post.brief.page.unreadable ? "This site blocked reading, so the link was added and the details came only from your brief" : "Linked page (Claude read it and added it to the post)"}</p>
                   <a href={post.brief.page.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-semibold text-sea hover:underline">{post.brief.page.title || post.brief.page.url}</a>
                   <p className="truncate text-xs text-muted/70">{post.brief.page.url}</p>
                 </div>
