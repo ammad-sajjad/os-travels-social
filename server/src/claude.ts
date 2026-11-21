@@ -203,7 +203,8 @@ Any fail = result "fail". Warnings do not block.
 
 async function parse<T extends z.ZodType>(system: string, user: string, schema: T, effort: "low" | "medium"): Promise<z.infer<T>> {
   if (config.claudeMode === "local") {
-    const raw = await runLocal(system, user, z.toJSONSchema(schema), effort);
+    const { $schema: _dialect, ...jsonSchema } = z.toJSONSchema(schema); // Claude Code rejects the 2020-12 dialect tag
+    const raw = await runLocal(system, user, jsonSchema, effort);
     return schema.parse(raw) as z.infer<T>;
   }
   const response = await claude().beta.messages.parse({
