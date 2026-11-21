@@ -5,3 +5,4 @@ server/data
 server/dist
 web/.next
 .DS_Store
+secrets.local.txt
